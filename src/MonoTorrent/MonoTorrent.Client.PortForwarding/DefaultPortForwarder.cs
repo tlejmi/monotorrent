@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mono.Nat;
@@ -47,9 +48,12 @@ namespace MonoTorrent.Client.PortForwarding
         {
             Devices = new HashSet<INatDevice> ();
             Requests = new List<(ushort internalPort, ushort externalPort)> ();
+
             NatUtility.DeviceFound += async (o, e) => {
                 await ClientEngine.MainLoop;
                 Devices.Add (e.Device);
+                var reqs = Requests.Select (r => e.Device.CreatePortMapAsync (new Mapping (Protocol.Tcp, r.internalPort, r.externalPort)));
+                await Task.WhenAll (reqs);
             };
 
             NatUtility.DeviceLost += async (o, e) => {
@@ -58,13 +62,27 @@ namespace MonoTorrent.Client.PortForwarding
             };
         }
 
-        public async Task ForwardPortAsync (ushort port, CancellationToken token)
+        public Task AddForwardPortAsync (ushort port, CancellationToken token)
+            => AddPortForwardAsync (port, port, token);
+
+        public async Task AddPortForwardAsync (ushort internalPort, ushort externalPort, CancellationToken token)
         {
+            await ClientEngine.MainLoop;
+            Requests.Add ((internalPort, externalPort));
+            var tasks = Devices.Select (d => d.CreatePortMapAsync (new Mapping (Protocol.Tcp, internalPort, externalPort)));
+            await Task.WhenAll (tasks);
         }
 
-        public async Task ForwardPortAsync (ushort externalPort, ushort internalPort, CancellationToken token)
+        public Task RemovePortForwardAsync (ushort port, CancellationToken token)
+            => RemovePortForwardAsync (port, port, token);
+
+        public async Task RemovePortForwardAsync (ushort internalPort, ushort externalPort, CancellationToken token)
         {
-            throw new NotImplementedException ();
+            await ClientEngine.MainLoop;
+            if (Requests.Remove ((internalPort, externalPort))) {
+                var tasks = Devices.Select (d => d.DeletePortMapAsync (new Mapping (Protocol.Tcp, internalPort, externalPort)));
+                await Task.WhenAll (tasks);
+            }
         }
 
         public async Task StartAsync ()

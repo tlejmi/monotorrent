@@ -50,7 +50,7 @@ namespace MonoTorrent.Client.PortForwarding
         /// <param name="externalPort">The external port number other clients will connect to.</param>
         /// <param name="token">Thecancellation  token used to abort the request.</param>
         /// <returns></returns>
-        Task AddPortForwardAsync (ushort externalPort, ushort internalPort, CancellationToken token);
+        Task AddPortForwardAsync (ushort internalPort, ushort externalPort, CancellationToken token);
 
         /// <summary>
         /// Removes a port forwarding mapping from the router.
