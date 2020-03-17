@@ -62,7 +62,7 @@ namespace MonoTorrent.Client.PortForwarding
             };
         }
 
-        public Task AddForwardPortAsync (ushort port, CancellationToken token)
+        public Task AddPortForwardAsync (ushort port, CancellationToken token)
             => AddPortForwardAsync (port, port, token);
 
         public async Task AddPortForwardAsync (ushort internalPort, ushort externalPort, CancellationToken token)
@@ -93,10 +93,21 @@ namespace MonoTorrent.Client.PortForwarding
             }
         }
 
-        public Task StopAsync ()
+        public Task StopAsync (CancellationToken token)
+            => StopAsync (true, token);
+
+        public async Task StopAsync (bool removeExisting, CancellationToken token)
         {
+            if (removeExisting) {
+                foreach ((var internalPort, var externalPort) in Requests.ToArray ()) {
+                    try {
+                        await RemovePortForwardAsync (internalPort, externalPort, token);
+                    } catch {
+
+                    }
+                }
+            }
             NatUtility.StopDiscovery ();
-            return Task.CompletedTask;
         }
     }
 }
