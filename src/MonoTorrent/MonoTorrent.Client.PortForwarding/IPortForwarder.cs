@@ -35,6 +35,11 @@ namespace MonoTorrent.Client.PortForwarding
     public interface IPortForwarder
     {
         /// <summary>
+        /// True if the port forwarding is enabled
+        /// </summary>
+        bool Active { get; }
+
+        /// <summary>
         /// Creates a port forwarding mapping on the router for the specified port..
         /// </summary>
         /// <param name="port">The value to use for the external and internal port number.</param>

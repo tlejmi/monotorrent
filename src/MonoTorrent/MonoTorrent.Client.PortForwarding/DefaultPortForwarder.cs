@@ -67,6 +67,9 @@ namespace MonoTorrent.Client.PortForwarding
 
         public async Task AddPortForwardAsync (ushort internalPort, ushort externalPort, CancellationToken token)
         {
+            if (!Active)
+                throw new InvalidOperationException ("You must all StartAsync before modifying forwarded ports.");
+
             await ClientEngine.MainLoop;
             Requests.Add ((internalPort, externalPort));
             var tasks = Devices.Select (d => d.CreatePortMapAsync (new Mapping (Protocol.Tcp, internalPort, externalPort)));
@@ -78,6 +81,9 @@ namespace MonoTorrent.Client.PortForwarding
 
         public async Task RemovePortForwardAsync (ushort internalPort, ushort externalPort, CancellationToken token)
         {
+            if (!Active)
+                throw new InvalidOperationException ("You must all StartAsync before modifying forwarded ports.");
+
             await ClientEngine.MainLoop;
             if (Requests.Remove ((internalPort, externalPort))) {
                 var tasks = Devices.Select (d => d.DeletePortMapAsync (new Mapping (Protocol.Tcp, internalPort, externalPort)));

@@ -41,6 +41,7 @@ using System.Threading.Tasks;
 using MonoTorrent.BEncoding;
 using MonoTorrent.Client.Listeners;
 using MonoTorrent.Client.PieceWriters;
+using MonoTorrent.Client.PortForwarding;
 using MonoTorrent.Client.RateLimiters;
 using MonoTorrent.Dht;
 
@@ -123,6 +124,8 @@ namespace MonoTorrent.Client
 
         public BEncodedString PeerId { get; }
 
+        public IPortForwarder PortForwarder { get; }
+
         public EngineSettings Settings { get; }
 
         public IList<TorrentManager> Torrents { get; }
@@ -197,6 +200,8 @@ namespace MonoTorrent.Client
             ConnectionManager = new ConnectionManager (PeerId, Settings, DiskManager);
             DhtEngine = new NullDhtEngine ();
             listenManager = new ListenManager (this);
+            PortForwarder = new DefaultPortForwarder ();
+
             MainLoop.QueueTimeout (TimeSpan.FromMilliseconds (TickLength), delegate {
                 if (IsRunning && !Disposed)
                     LogicTick ();
@@ -549,8 +554,23 @@ namespace MonoTorrent.Client
             IsRunning = true;
             if (Listener.Status == ListenerStatus.NotListening)
                 Listener.Start ();
+            EnablePortForwarding ();
         }
 
+        async void EnablePortForwarding ()
+        {
+            if (!PortForwarder.Active) {
+                await PortForwarder.StartAsync ();
+                await PortForwarder.AddPortForwardAsync ((ushort) Settings.ListenPort, CancellationToken.None);
+            }
+        }
+
+        async void DisablePortForwarding ()
+        {
+            if (PortForwarder.Active) {
+                await PortForwarder.StopAsync (true, CancellationToken.None);
+            }
+        }
 
         internal void Stop ()
         {
@@ -559,6 +579,7 @@ namespace MonoTorrent.Client
             IsRunning = allTorrents.Exists (m => m.State != TorrentState.Stopped);
             if (!IsRunning)
                 Listener.Stop ();
+            DisablePortForwarding ();
         }
 
         static BEncodedString GeneratePeerId ()
